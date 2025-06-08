@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        
+        {
+            "type": "java",
+            "name": "Spring Boot-DatacarApplication<datacar>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.idi.assessor.datacar.DatacarApplication",
+            "projectName": "datacar",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
