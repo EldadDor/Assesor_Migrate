@@ -117,24 +117,6 @@ public final class SambaFileUtil implements ApplicationContextAware {
 		}
 	}
 
-	public SmbFile saveDataToFile(byte[] data, String to) {
-//		IDIStopWatch.startDebugWatch(to);
-		String toSmbUrl = getSmbUrlFromUnc(to);
-		OutputStream writer = null;
-		try {
-			SmbFile smbFileTo = createSmbFile(toSmbUrl);
-			writer = smbFileTo.getOutputStream();
-			writer.write(data);
-			return smbFileTo;
-		} catch (Exception e) {
-			throw new IDIApplicativeException("Failed creating Samba file at=" + toSmbUrl, e);
-		} finally {
-//			IDIStopWatch.endDebugWatch(to, String.format("[smb] [saveDataToFile] to=%s", to));
-			IOUtils.closeQuietly(writer);
-		}
-	}
-
-
 	/**
 	 * !!! Dont forget to call IOUtils.closeQuietly(outputStream); after writing to the stream. !!!!
 	 *
@@ -322,19 +304,70 @@ public final class SambaFileUtil implements ApplicationContextAware {
 		}
 	}
 
-	public List<String> listFiles(String directoryUrl) {
+	public List<FileDataWrapper> listFiles(String directoryUrl) {
+		final String id = "listFilesAsWrapper" + directoryUrl;
+		directoryUrl = getSmbUrlFromUnc(directoryUrl);
+
+		try {
+			SmbFile directory = new SmbFile(directoryUrl, getCIFSContext());
+			if (!directory.exists() || !directory.isDirectory()) {
+				return Collections.emptyList();
+			}
+
+			SmbFile[] smbFiles = directory.listFiles(new DosFileFilter("*",
+					SmbConstants.ATTR_COMPRESSED + SmbConstants.ATTR_ARCHIVE));
+
+			if (smbFiles == null || smbFiles.length == 0) {
+				return Collections.emptyList();
+			}
+
+			return Arrays.stream(smbFiles)
+					.filter(smbFile -> {
+						try {
+							return smbFile.isFile();
+						} catch (SmbException e) {
+							// Log warning but continue processing other files
+							return false;
+						}
+					})
+					.map(smbFile -> {
+						try {
+							String fullPath = smbFile.getPath();
+							// Convert SMB path back to UNC path for consistency
+							String uncPath = fullPath.substring(6); // Remove "smb://" prefix
+							uncPath = uncPath.replace('/', '\\');
+							if (!uncPath.startsWith("\\")) {
+								uncPath = "\\" + uncPath;
+							}
+
+							String fileName = smbFile.getName();
+							long size = smbFile.length();
+							long lastModified = smbFile.getLastModified();
+
+							// Create FileDataWrapper without content (lazy loading)
+							return new FileDataWrapper(uncPath, fileName, size, lastModified);
+						} catch (SmbException e) {
+							throw new IDIApplicativeException("Failed to read file metadata for: " + smbFile.getPath(), e);
+						}
+					})
+					.collect(Collectors.toList());
+
+		} catch (Exception e) {
+			throw new IDIApplicativeException("Samba error while listing files as FileDataWrapper: " + e.getMessage(), e);
+		}
+	}
+
+	public List<String> listFileNames(String directoryUrl) {
 		final String id = "list" + directoryUrl;
-//		IDIStopWatch.startDebugWatch(id);
 		directoryUrl = getSmbUrlFromUnc(directoryUrl);
 		try {
 			SmbFile directory = new SmbFile(directoryUrl, getCIFSContext());
 			return Arrays.stream(directory.listFiles(new DosFileFilter("*", SmbConstants.ATTR_COMPRESSED + SmbConstants.ATTR_ARCHIVE))).map(SmbFile::getName).collect(Collectors.toList());
 		} catch (Exception e) {
 			throw new IDIApplicativeException("Samba error=" + e.getMessage(), e);
-		} finally {
-//			IDIStopWatch.endDebugWatch(id, String.format("[smb] [listDirs] dirPath =%s", directoryUrl));
 		}
 	}
+
 
 	public List<String> listDirs(String directoryUrl) {
 		final String id = "list" + directoryUrl;
@@ -387,6 +420,50 @@ public final class SambaFileUtil implements ApplicationContextAware {
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		this.context = applicationContext;
+	}
+
+
+	// Fix the saveDataToFile method to match the usage in config
+	public SmbFile saveDataToFile(String directory, String fileName, byte[] data) {
+		String fullPath = directory;
+		if (!directory.endsWith("/") && !directory.endsWith("\\")) {
+			fullPath += "/";
+		}
+		fullPath += fileName;
+
+		String toSmbUrl = getSmbUrlFromUnc(fullPath);
+		OutputStream writer = null;
+		try {
+			SmbFile smbFileTo = createSmbFile(toSmbUrl);
+			writer = smbFileTo.getOutputStream();
+			writer.write(data);
+			return smbFileTo;
+		} catch (Exception e) {
+			throw new IDIApplicativeException("Failed creating Samba file at=" + toSmbUrl, e);
+		} finally {
+			IOUtils.closeQuietly(writer);
+		}
+	}
+
+	// Add the writeFile method that's referenced in the config
+	public void writeFile(String directory, String fileName, byte[] data) {
+		saveDataToFile(directory, fileName, data);
+	}
+
+	// Keep the original saveDataToFile method for backward compatibility
+	public SmbFile saveDataToFile(byte[] data, String to) {
+		String toSmbUrl = getSmbUrlFromUnc(to);
+		OutputStream writer = null;
+		try {
+			SmbFile smbFileTo = createSmbFile(toSmbUrl);
+			writer = smbFileTo.getOutputStream();
+			writer.write(data);
+			return smbFileTo;
+		} catch (Exception e) {
+			throw new IDIApplicativeException("Failed creating Samba file at=" + toSmbUrl, e);
+		} finally {
+			IOUtils.closeQuietly(writer);
+		}
 	}
 }
 

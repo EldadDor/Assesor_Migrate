@@ -1,0 +1,47 @@
+sequenceDiagram
+    title Zip File Processing and Cataloging Flow
+
+    box rgb(220, 230, 240) File Scanning & Copying
+        participant Scheduler
+        participant FileScanner
+        participant BackupFolder
+        participant TerminalFolder
+        participant WaitingFolder
+    end
+
+    box rgb(220, 240, 230) File Processing & Cataloging
+        participant ProcessingService
+        participant ImageCatalogAPI
+        participant ErrorFolder
+    end
+
+%% === Phase 1: File Scanning & Copying ===
+    Scheduler->>+FileScanner: Trigger Scheduled Scan
+    Note over FileScanner: Scans for new Zip files
+
+    par
+        FileScanner->>BackupFolder: Copy Zip File
+    and
+        FileScanner->>TerminalFolder: Copy Zip File
+    and
+        FileScanner->>WaitingFolder: Copy Zip File
+    end
+    deactivate FileScanner
+
+%% === Phase 2: File Processing & Cataloging ===
+    WaitingFolder-->>+ProcessingService: Notify: New Zip File arrived
+
+    loop For Each Zip File
+        Note over ProcessingService: Move Zip to Temp & Unzip
+        Note over ProcessingService: Read Image and Metadata Files
+
+        ProcessingService->>+ImageCatalogAPI: POST /catalog (Image + Metadata)
+        ImageCatalogAPI-->>-ProcessingService: API Response
+
+        alt API Call Successful
+            Note over ProcessingService: Processing Complete for this file
+        else API Call Failed
+            ProcessingService->>ErrorFolder: Move failed Zip to Error Folder
+        end
+    end
+    deactivate ProcessingService

@@ -1,0 +1,44 @@
+// Task-1: File Scanning & Copying
+File Scanning and Copying [shape: oval, color: lightblue, icon: search]
+Scheduled Scan [color: blue, icon: clock]
+Scan for Zip Files [icon: file-archive, color: blue]
+Copy to Backup Folder [icon: folder, color: orange]
+Copy to Terminal Folder [icon: folder, color: orange]
+Copy to Waiting File Folder [icon: folder, color: orange]
+
+// Task-2: File Processing & Cataloging
+File Processing and Cataloging [shape: oval, color: lightgreen, icon: play]
+Move Zip Files to Temp Folder [icon: folder, color: purple]
+For Each Zip File [shape: diamond, icon: file-archive, color: purple]
+
+Zip File Processing [color: teal, icon: file-archive] {
+  Unzip File [icon: unzip, color: teal]
+  Read Image Files [icon: image, color: teal]
+  Read Metadata File [icon: file-text, color: teal]
+  Catalog Images via API [icon: globe, color: green]
+  API Call Successful? [shape: diamond, icon: check-square, color: green]
+  Move to Error Folder [icon: alert-triangle, color: red]
+}
+
+Processing Complete [shape: oval, color: lightgreen, icon: check-circle]
+
+// Relationships
+File Scanning and Copying > Scheduled Scan
+Scheduled Scan > Scan for Zip Files
+Scan for Zip Files > Copy to Backup Folder
+Scan for Zip Files > Copy to Terminal Folder
+Scan for Zip Files > Copy to Waiting File Folder
+
+Copy to Waiting File Folder > File Processing and Cataloging
+
+File Processing and Cataloging > Move Zip Files to Temp Folder
+Move Zip Files to Temp Folder > For Each Zip File
+
+For Each Zip File > Unzip File
+Unzip File > Read Image Files
+Read Image Files > Read Metadata File
+Read Metadata File > Catalog Images via API
+Catalog Images via API > API Call Successful?
+API Call Successful? > Processing Complete: Yes
+API Call Successful? > Move to Error Folder: No
+Move to Error Folder > Processing Complete
